@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Operating System (COS) - XAUUSDT Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans leading-normal tracking-normal">
+
+    <!-- Top Navigation Bar -->
+    <nav class="bg-gray-800 border-b border-gray-700 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <span class="text-2xl font-bold tracking-wider text-yellow-500">XAUUSDT MASTER</span>
+            <span class="bg-red-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider animate-pulse flex items-center">
+                <span class="h-2 w-2 bg-white rounded-full inline-block mr-1.5 animate-ping"></span>
+                GERÇEK PARA — CANLI (LIVE_MICRO)
+            </span>
+        </div>
+        <div class="flex items-center space-x-6 text-sm">
+            <div class="flex items-center space-x-2">
+                <span class="text-gray-400">Exchange status:</span>
+                <span id="conn-status" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-medium">CONNECTED</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="text-gray-400">Emergency Stop:</span>
+                <span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 font-medium">ACTIVE READY</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Workspace Container -->
+    <div class="p-6 max-w-[1600px] mx-auto grid grid-cols-1 xl:grid-cols-4 gap-6">
+
+        <!-- Column 1 & 2: Main Panels -->
+        <div class="xl:col-span-3 space-y-6">
+
+            <!-- KPI Row -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <!-- Today Win Rate -->
+                <div class="bg-gray-850 bg-gradient-to-br from-gray-800 to-gray-850 p-6 rounded-xl border border-gray-700 shadow-md">
+                    <p class="text-sm font-semibold tracking-wide text-gray-400 uppercase">Günlük Win Rate</p>
+                    <h3 id="wr-val" class="text-4xl font-extrabold text-emerald-400 mt-2">72.5%</h3>
+                    <p class="text-xs text-gray-500 mt-1">Anlık Güncellenir</p>
+                </div>
+                <!-- Running Balance -->
+                <div class="bg-gray-850 bg-gradient-to-br from-gray-800 to-gray-850 p-6 rounded-xl border border-gray-700 shadow-md">
+                    <p class="text-sm font-semibold tracking-wide text-gray-400 uppercase">Canlı Bakiye ($100)</p>
+                    <h3 id="balance-val" class="text-4xl font-extrabold text-yellow-500 mt-2">$104.30</h3>
+                    <p id="pnl-summary" class="text-xs text-emerald-400 mt-1">+$4.30 PnL</p>
+                </div>
+                <!-- Profit Factor -->
+                <div class="bg-gray-850 bg-gradient-to-br from-gray-800 to-gray-850 p-6 rounded-xl border border-gray-700 shadow-md">
+                    <p class="text-sm font-semibold tracking-wide text-gray-400 uppercase">Profit Factor</p>
+                    <h3 id="pf-val" class="text-4xl font-extrabold text-blue-400 mt-2">1.84</h3>
+                    <p class="text-xs text-gray-500 mt-1">Süreklilik Katsayısı</p>
+                </div>
+                <!-- Expectancy -->
+                <div class="bg-gray-850 bg-gradient-to-br from-gray-800 to-gray-850 p-6 rounded-xl border border-gray-700 shadow-md">
+                    <p class="text-sm font-semibold tracking-wide text-gray-400 uppercase">Expectancy / Sharpe</p>
+                    <h3 id="expectancy-val" class="text-4xl font-extrabold text-purple-400 mt-2">0.45</h3>
+                    <p class="text-xs text-gray-500 mt-1">Sistem Beklentisi (Pip)</p>
+                </div>
+            </div>
+
+            <!-- Chart Panel -->
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold">XAUUSDT Win Rate & PnL Trend</h2>
+                    <span class="text-xs text-gray-400">Son 7 Gün</span>
+                </div>
+                <div class="h-64">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Grid for Recommendations and Config Updates -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                <!-- Pending Recommendations -->
+                <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 flex flex-col h-[500px]">
+                    <div class="flex items-center justify-between mb-4 border-b border-gray-700 pb-3">
+                        <h2 class="text-lg font-bold flex items-center">
+                            <span class="h-3 w-3 bg-amber-500 rounded-full inline-block mr-2 animate-pulse"></span>
+                            Bekleyen Öneriler (Adaptif Öğrenme)
+                        </h2>
+                    </div>
+                    <div id="recommendations-container" class="space-y-4 overflow-y-auto flex-1 pr-2">
+                        <!-- Dynamic -->
+                        <p class="text-gray-500 text-sm">Yükleniyor veya bekleyen öneri bulunmamaktadır...</p>
+                    </div>
+                </div>
+
+                <!-- Config History (Audit Trail & Rollback) -->
+                <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 flex flex-col h-[500px]">
+                    <div class="flex items-center justify-between mb-4 border-b border-gray-700 pb-3">
+                        <h2 class="text-lg font-bold">Değişiklik Geçmişi (Config Audit Trail)</h2>
+                        <span class="text-xs text-emerald-400 cursor-pointer hover:underline" onclick="loadConfigHistory()">Yenile</span>
+                    </div>
+                    <div id="history-container" class="space-y-3 overflow-y-auto flex-1 pr-2">
+                        <!-- Dynamic -->
+                        <p class="text-gray-500 text-sm">Yükleniyor veya değişiklik geçmişi bulunmamaktadır...</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Trade History Table -->
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                <h2 class="text-lg font-bold mb-4">Trade Geçmişi Tablosu</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-700 text-sm">
+                        <thead class="bg-gray-750">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Yön</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Giriş/Çıkış Fiyat</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Miktar</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">PnL / Komisyon</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Aktif Filtreler</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Versiyon</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase">Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trade-table-body" class="divide-y divide-gray-700">
+                            <!-- Dynamic rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Column 3: Live Control & Sidebar -->
+        <div class="space-y-6">
+
+            <!-- Active Win-Rate Filters Panel -->
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                <h2 class="text-lg font-bold mb-4 border-b border-gray-700 pb-3">Win-Rate Filtre Durumları</h2>
+                <div class="space-y-3 text-sm">
+                    <div class="flex items-center justify-between">
+                        <span>1. ConfluenceEvaluator</span>
+                        <span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400">ACTIVE</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span>2. Market Structure</span>
+                        <span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400">ACTIVE</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span>3. Seans/Likidite</span>
+                        <span id="session-badge" class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400">ACTIVE (LONDON)</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span>4. News Blackout</span>
+                        <span id="news-blackout-badge" class="px-2 py-0.5 rounded text-xs font-bold bg-gray-500/20 text-gray-400">INACTIVE</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span>5. Volatilite Rejim</span>
+                        <span id="volatility-badge" class="px-2 py-0.5 rounded text-xs font-bold bg-gray-500/20 text-gray-400">NORMAL VOL</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span>6. S/R Bölge Giriş</span>
+                        <span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400">ACTIVE</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span>7. Ablation Walk-Forward</span>
+                        <span class="px-2 py-0.5 rounded text-xs font-bold bg-blue-500/20 text-blue-400">ACTIVE</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live PnL vs Paper comparison -->
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                <h2 class="text-lg font-bold mb-4 border-b border-gray-700 pb-3">LIVE_MICRO vs PAPER</h2>
+                <div class="grid grid-cols-2 gap-4 text-center">
+                    <div class="bg-gray-750 p-3 rounded-lg">
+                        <span class="text-xs text-red-400 font-bold block">LIVE PnL</span>
+                        <span id="live-pnl-comp" class="text-lg font-bold text-emerald-400">+$4.30</span>
+                    </div>
+                    <div class="bg-gray-750 p-3 rounded-lg">
+                        <span class="text-xs text-gray-400 block">PAPER PnL</span>
+                        <span class="text-lg font-bold text-gray-300">+$6.10</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WebSocket Live Event Logger Panel -->
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 flex flex-col h-[525px]">
+                <h2 class="text-lg font-bold mb-4 border-b border-gray-700 pb-3">Canlı Sistem Log Akışı</h2>
+                <div id="log-flow" class="space-y-2 overflow-y-auto flex-1 font-mono text-xs pr-2 text-gray-300">
+                    <!-- Dynamic -->
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Script integrations -->
+    <script>
+        const API_BASE = window.location.origin.startsWith('file') ? 'http://localhost:8000' : window.location.origin;
+        const WS_URL = window.location.origin.startsWith('file') ? 'ws://localhost:8000/ws' : `ws://${window.location.host}/ws`;
+
+        // Initialize empty chart
+        const ctx = document.getElementById('performanceChart').getContext('2d');
+        const performanceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
+                datasets: [{
+                    label: 'Win Rate (%)',
+                    data: [65, 68, 70, 72, 75, 71, 72.5],
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        grid: { color: '#374151' },
+                        ticks: { color: '#9ca3af' }
+                    },
+                    x: {
+                        grid: { color: '#374151' },
+                        ticks: { color: '#9ca3af' }
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: '#9ca3af' } }
+                }
+            }
+        });
+
+        // WebSocket setup for direct Event-Driven streams
+        function connectWS() {
+            const ws = new WebSocket(WS_URL);
+            ws.onmessage = function(event) {
+                const payload = JSON.parse(event.data);
+                if (payload.type === "log") {
+                    appendLiveLog(payload.data);
+                } else if (payload.type === "init_logs") {
+                    const logs = payload.data;
+                    document.getElementById("log-flow").innerHTML = "";
+                    logs.forEach(appendLiveLog);
+                } else if (payload.type === "session_active") {
+                    document.getElementById("session-badge").textContent = `ACTIVE (${payload.data.session})`;
+                } else if (payload.type === "news_blackout") {
+                    const badge = document.getElementById("news-blackout-badge");
+                    if (payload.data.active) {
+                        badge.textContent = "ACTIVE BLACKOUT";
+                        badge.className = "px-2 py-0.5 rounded text-xs font-bold bg-rose-500/20 text-rose-400";
+                    } else {
+                        badge.textContent = "INACTIVE";
+                        badge.className = "px-2 py-0.5 rounded text-xs font-bold bg-gray-500/20 text-gray-400";
+                    }
+                } else if (payload.type === "low_volatility") {
+                    const badge = document.getElementById("volatility-badge");
+                    badge.textContent = "LOW VOLATILITY";
+                    badge.className = "px-2 py-0.5 rounded text-xs font-bold bg-amber-500/20 text-amber-400";
+                } else if (payload.type === "trade_opened" || payload.type === "trade_closed" || payload.type === "config_updated") {
+                    fetchMetrics();
+                    fetchRecommendations();
+                    loadConfigHistory();
+                    fetchTrades();
+                }
+            };
+            ws.onclose = function() {
+                setTimeout(connectWS, 2000);
+            };
+        }
+
+        function appendLiveLog(log) {
+            const container = document.getElementById("log-flow");
+            const div = document.createElement("div");
+            div.className = "p-1.5 rounded bg-gray-750 border-l-2 mb-2 " +
+                (log.level === "ERROR" ? "border-rose-500 text-rose-300" : log.level === "WARNING" ? "border-amber-500 text-amber-300" : "border-gray-600 text-gray-300");
+
+            div.innerHTML = `<span class="text-gray-500 text-[10px]">[${new Date(log.timestamp).toLocaleTimeString()}]</span> <strong>${log.department}</strong>: ${log.message}`;
+            container.insertBefore(div, container.firstChild);
+        }
+
+        async function fetchMetrics() {
+            const res = await fetch(`${API_BASE}/metrics`);
+            const data = await res.json();
+            document.getElementById("wr-val").textContent = `${data.win_rate}%`;
+            document.getElementById("balance-val").textContent = `$${data.balance}`;
+            document.getElementById("pf-val").textContent = data.profit_factor;
+            document.getElementById("expectancy-val").textContent = data.expectancy;
+
+            const diff = (data.balance - 100.0).toFixed(2);
+            document.getElementById("pnl-summary").textContent = (diff >= 0 ? "+" : "") + `$${diff} PnL`;
+            document.getElementById("live-pnl-comp").textContent = (diff >= 0 ? "+" : "") + `$${diff}`;
+        }
+
+        async function fetchRecommendations() {
+            const res = await fetch(`${API_BASE}/recommendations`);
+            const data = await res.json();
+            const container = document.getElementById("recommendations-container");
+            container.innerHTML = "";
+
+            const pending = data.filter(r => r.status === "pending");
+            if (pending.length === 0) {
+                container.innerHTML = `<p class="text-gray-500 text-sm">Bekleyen öneri bulunmamaktadır...</p>`;
+                return;
+            }
+
+            pending.forEach(rec => {
+                const card = document.createElement("div");
+                card.className = "p-4 bg-gray-750 rounded-lg border border-gray-700 space-y-2";
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-yellow-500 uppercase">${rec.source}</span>
+                        <span class="text-[10px] text-gray-400">Score: ${(rec.confidence_score*100).toFixed(0)}%</span>
+                    </div>
+                    <p class="text-sm font-semibold">${rec.target_param}</p>
+                    <p class="text-xs text-gray-400">Mevcut: <span class="line-through text-rose-400">${rec.current_value}</span> | Önerilen: <span class="text-emerald-400">${rec.suggested_value}</span></p>
+                    <p class="text-xs italic text-gray-400">"${rec.reason}"</p>
+                    <div class="flex justify-end space-x-2 pt-2">
+                        <button onclick="approveRecommendation('${rec.recommendation_id}')" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded">Onayla</button>
+                        <button onclick="rejectRecommendation('${rec.recommendation_id}')" class="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded">Reddet</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        async function approveRecommendation(id) {
+            await fetch(`${API_BASE}/recommendations/${id}/approve`, {method: "POST"});
+            fetchRecommendations();
+            loadConfigHistory();
+        }
+
+        async function rejectRecommendation(id) {
+            await fetch(`${API_BASE}/recommendations/${id}/reject`, {method: "POST"});
+            fetchRecommendations();
+        }
+
+        async function loadConfigHistory() {
+            const res = await fetch(`${API_BASE}/config/history`);
+            const data = await res.json();
+            const container = document.getElementById("history-container");
+            container.innerHTML = "";
+
+            if (data.length === 0) {
+                container.innerHTML = `<p class="text-gray-500 text-sm">Değişiklik geçmişi bulunmamaktadır...</p>`;
+                return;
+            }
+
+            data.forEach(hist => {
+                const div = document.createElement("div");
+                div.className = "p-3 bg-gray-750 rounded border border-gray-700 flex justify-between items-center text-xs";
+                div.innerHTML = `
+                    <div class="space-y-0.5">
+                        <p class="font-semibold text-gray-300">${hist.key}</p>
+                        <p class="text-gray-400 text-[10px]">Değişim: ${hist.old_value} &rarr; ${hist.new_value} (${hist.source})</p>
+                    </div>
+                    <button onclick="rollbackConfig(${hist.id})" class="px-2 py-1 bg-gray-600 hover:bg-gray-500 text-[10px] rounded font-semibold text-white">Geri Al (Rollback)</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function rollbackConfig(id) {
+            await fetch(`${API_BASE}/config/rollback/${id}`, {method: "POST"});
+            loadConfigHistory();
+            fetchMetrics();
+        }
+
+        async function fetchTrades() {
+            const res = await fetch(`${API_BASE}/trades`);
+            const data = await res.json();
+            const tbody = document.getElementById("trade-table-body");
+            tbody.innerHTML = "";
+
+            data.forEach(t => {
+                const tr = document.createElement("tr");
+                tr.className = "hover:bg-gray-750";
+                tr.innerHTML = `
+                    <td class="px-4 py-3 font-semibold ${t.direction === 'LONG' ? 'text-emerald-400' : 'text-rose-400'}">${t.direction}</td>
+                    <td class="px-4 py-3 text-gray-300">${t.entry_price} / ${t.exit_price || '-'}</td>
+                    <td class="px-4 py-3 text-gray-300">${t.quantity}</td>
+                    <td class="px-4 py-3 ${t.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${t.pnl ? '$' + t.pnl.toFixed(2) : '-'} <span class="text-gray-500 text-xs">/ $${t.commission.toFixed(2)}</span></td>
+                    <td class="px-4 py-3 text-gray-400 text-xs">${t.active_filters || 'None'}</td>
+                    <td class="px-4 py-3 text-gray-400 text-xs">${t.strategy_version_id}</td>
+                    <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-xs font-bold ${t.status === 'CLOSED' ? 'bg-gray-700 text-gray-400' : 'bg-emerald-500/20 text-emerald-400'}">${t.status}</span></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Setup everything on load
+        window.onload = function() {
+            connectWS();
+            fetchMetrics();
+            fetchRecommendations();
+            loadConfigHistory();
+            fetchTrades();
+        }
+    </script>
+</body>
+</html>
