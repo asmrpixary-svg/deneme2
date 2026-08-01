@@ -1,0 +1,65 @@
+INFO:     Started server process [342726]
+INFO:     Waiting for application startup.
+2026-08-01 15:47:10,229 - Market Dept - INFO - [Market Dept] Market Department with Order Book Depth Imbalance has started.
+2026-08-01 15:47:10,229 - Technical Dept - INFO - [Technical Dept] Technical Department (MTF Enabled) has started.
+2026-08-01 15:47:10,246 - Technical Dept - INFO - [Technical Dept] Loaded config: ATR multiplier=1.2, Low Volatility threshold=1.5
+2026-08-01 15:47:10,247 - Strategy Dept - INFO - [Strategy Dept] Strategy Department has started.
+2026-08-01 15:47:10,250 - Strategy Dept - INFO - [Strategy Dept] Loaded config: min_confluence=3, SR proximity margin=0.1
+2026-08-01 15:47:10,250 - Risk Dept - INFO - [Risk Dept] Risk Department has started.
+2026-08-01 15:47:10,252 - Risk Dept - INFO - [Risk Dept] Loaded config: Daily loss limit=5.0%, Weekly loss limit=10.0%
+2026-08-01 15:47:10,252 - Trade Dept - INFO - [Trade Dept] Trade Department (Limit Order Chaser Enabled) has started.
+2026-08-01 15:47:10,254 - Portfolio Dept - INFO - [Portfolio Dept] Portfolio Department has started.
+2026-08-01 15:47:10,254 - Learning Dept - INFO - [Learning Dept] Learning Department has started.
+2026-08-01 15:47:10,254 - Backtest Dept - INFO - [Backtest Dept] Backtest Department (WFO Enabled) has started.
+2026-08-01 15:47:10,254 - Scheduler Dept - INFO - [Scheduler Dept] Scheduler Department has started.
+2026-08-01 15:47:10,254 - News Dept - INFO - [News Dept] News Department with Macro Calendar Scraper has started.
+2026-08-01 15:47:10,254 - Monitoring Dept - INFO - [Monitoring Dept] Monitoring Department has started.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2026-08-01 15:47:15,386 - Backtest Dept - INFO - [Backtest Dept] Starting Ablation & Walk-Forward Validation Engine (3 Periods)...
+2026-08-01 15:47:15,394 - Backtest Dept - INFO - [Backtest Dept] Ablation Run Sweep completed successfully.
+INFO:     127.0.0.1:39866 - "GET / HTTP/1.1" 200 OK
+2026-08-01 15:47:38,877 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+INFO:     127.0.0.1:39880 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:39866 - "GET /metrics HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39894 - "GET /config/history HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39902 - "GET /trades HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39890 - "GET /recommendations HTTP/1.1" 200 OK
+2026-08-01 15:47:40,914 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:47:42,952 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:47:44,988 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:47:47,025 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:47:49,060 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:47:51,098 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:47:53,133 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:47:55,168 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:47:57,206 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:47:59,243 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:01,279 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:03,315 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:05,355 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:07,391 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:09,427 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:11,463 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:13,501 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:15,535 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:17,570 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:19,605 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:21,640 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:23,676 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:25,712 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:27,752 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:29,791 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:31,827 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:33,863 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:35,900 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:37,936 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:39,975 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:42,012 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:44,047 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+2026-08-01 15:48:46,084 - Strategy Dept - WARNING - [Strategy Dept] Signal Rejected: Volatility Regime Filter (Low Volatility detected)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [342726]
