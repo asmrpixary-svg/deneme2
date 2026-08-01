@@ -6,8 +6,8 @@
     <title>Company Operating System (COS) - XAUUSDT Dashboard</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- TradingView Widget Script -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans leading-normal tracking-normal">
 
@@ -103,24 +103,62 @@
                 </div>
             </div>
 
-            <!-- Chart Panel -->
-            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
-                <div class="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 class="text-lg font-bold flex items-center">
-                            <span class="h-2 w-2 rounded-full bg-emerald-500 animate-ping mr-2"></span>
-                            XAUUSDT Canlı Grafik & Teknik Sinyaller
+            <!-- Split Chart & Bot HUD Panel -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- TradingView Live Binance Futures Chart Widget (2/3 Width) -->
+                <div class="lg:col-span-2 bg-gray-800 p-4 rounded-xl border border-gray-700 flex flex-col h-[450px]">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-sm font-bold uppercase tracking-wider text-yellow-500 flex items-center">
+                            <span class="h-2 w-2 rounded-full bg-yellow-500 animate-ping mr-2"></span>
+                            Binance Futures XAUUSDT Canlı Ekranı
                         </h2>
-                        <p class="text-xs text-gray-400 mt-0.5">Fiyat (Real-time), EMA Fast, EMA Slow ve Departman Kararları</p>
+                        <span class="text-[10px] text-gray-400">TradingView Real-Time Data Feed</span>
                     </div>
-                    <div class="flex space-x-2 text-xs">
-                        <span class="px-2 py-0.5 bg-yellow-500/10 text-yellow-500 font-bold rounded">CANLI FİYAT: <span id="current-chart-price">-</span></span>
-                        <span class="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 font-bold rounded">EMA FAST: <span id="current-chart-ema-fast">-</span></span>
-                        <span class="px-2 py-0.5 bg-purple-500/10 text-purple-400 font-bold rounded">EMA SLOW: <span id="current-chart-ema-slow">-</span></span>
-                    </div>
+                    <!-- TradingView Widget Container -->
+                    <div id="tradingview_widget" class="w-full flex-1 rounded overflow-hidden"></div>
                 </div>
-                <div class="h-80 relative">
-                    <canvas id="performanceChart"></canvas>
+
+                <!-- Live Bot HUD Terminal (1/3 Width) -->
+                <div class="bg-gray-850 p-5 rounded-xl border border-gray-700 flex flex-col justify-between h-[450px] shadow-lg">
+                    <div>
+                        <div class="border-b border-gray-700 pb-3 mb-4">
+                            <h2 class="text-sm font-extrabold uppercase tracking-widest text-emerald-400 flex items-center justify-between">
+                                <span>🤖 HUD Terminal</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] bg-emerald-500/15 text-emerald-400 animate-pulse">SİSTEM CANLI</span>
+                            </h2>
+                            <p class="text-[10px] text-gray-400 mt-1">Departmanların milisaniyelik XAUUSDT analiz akışı</p>
+                        </div>
+
+                        <!-- Active Live HUD Elements -->
+                        <div class="space-y-3.5 text-xs">
+                            <!-- Market Dept HUD -->
+                            <div class="bg-gray-800/60 p-3 rounded-lg border border-gray-700/60">
+                                <span class="text-[10px] font-bold text-yellow-500 block uppercase">Market Dept</span>
+                                <p class="text-gray-200 mt-1" id="hud-market">XAUUSDT verileri Binance'ten taranıyor...</p>
+                            </div>
+
+                            <!-- Technical Dept HUD -->
+                            <div class="bg-gray-800/60 p-3 rounded-lg border border-gray-700/60">
+                                <span class="text-[10px] font-bold text-emerald-400 block uppercase">Technical Dept</span>
+                                <p class="text-gray-200 mt-1" id="hud-technical">İndikatörler taranıyor, MTF bekleniyor...</p>
+                            </div>
+
+                            <!-- Strategy Dept HUD -->
+                            <div class="bg-gray-800/60 p-3 rounded-lg border border-gray-700/60">
+                                <span class="text-[10px] font-bold text-blue-400 block uppercase">Strategy Dept</span>
+                                <p class="text-gray-200 mt-1" id="hud-strategy">Filtreler kontrol için tetikte bekliyor.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Risk HUD Summary footer -->
+                    <div class="bg-gray-800 p-3 rounded-lg border border-gray-700 text-xs flex items-center justify-between">
+                        <div>
+                            <span class="text-[9px] font-bold text-rose-400 block uppercase">Risk Dept Onay Durumu</span>
+                            <span id="hud-risk-status" class="font-extrabold text-emerald-400 uppercase tracking-wider text-xs">GÜVENLİ (ONAY HAZIR)</span>
+                        </div>
+                        <span class="h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    </div>
                 </div>
             </div>
 
@@ -269,66 +307,24 @@
         const API_BASE = window.location.origin.startsWith('file') ? 'http://localhost:8000' : window.location.origin;
         const WS_URL = window.location.origin.startsWith('file') ? 'ws://localhost:8000/ws' : `ws://${window.location.host}/ws`;
 
-        // Sliding window of real-time price & indicator data
-        const maxTicks = 40;
-        const chartLabels = [];
-        const chartPrices = [];
-        const chartEmaFast = [];
-        const chartEmaSlow = [];
-        const chartTriggers = []; // For overlay annotations (buy/sell/reject)
-
-        const ctx = document.getElementById('performanceChart').getContext('2d');
-        const performanceChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: chartLabels,
-                datasets: [
-                    {
-                        label: 'Altın Spot Fiyatı',
-                        data: chartPrices,
-                        borderColor: '#eab308', // Yellow
-                        borderWidth: 2,
-                        tension: 0.1,
-                        fill: false
-                    },
-                    {
-                        label: 'EMA Fast (Hızlı)',
-                        data: chartEmaFast,
-                        borderColor: '#10b981', // Emerald
-                        borderWidth: 1.5,
-                        borderDash: [4, 4],
-                        tension: 0.1,
-                        fill: false
-                    },
-                    {
-                        label: 'EMA Slow (Yavaş)',
-                        data: chartEmaSlow,
-                        borderColor: '#a855f7', // Purple
-                        borderWidth: 1.5,
-                        borderDash: [2, 2],
-                        tension: 0.1,
-                        fill: false
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        grid: { color: '#374151' },
-                        ticks: { color: '#9ca3af' }
-                    },
-                    x: {
-                        grid: { color: '#374151' },
-                        ticks: { color: '#9ca3af', display: false }
-                    }
-                },
-                plugins: {
-                    legend: { labels: { color: '#9ca3af' } }
-                }
-            }
-        });
+        // Load the TradingView Widget for Binance Futures Gold CFD
+        function initTradingView() {
+            new TradingView.widget({
+                "width": "100%",
+                "height": "100%",
+                "symbol": "BINANCE:XAUUSDT.P",
+                "interval": "15",
+                "timezone": "Etc/UTC",
+                "theme": "dark",
+                "style": "1",
+                "locale": "tr",
+                "toolbar_bg": "#f1f3f6",
+                "enable_publishing": false,
+                "hide_side_toolbar": false,
+                "allow_symbol_change": true,
+                "container_id": "tradingview_widget"
+            });
+        }
 
         // WebSocket setup for direct Event-Driven streams
         function connectWS() {
@@ -381,30 +377,15 @@
         }
 
         function updateChartWithCalculatedIndicators(data) {
-            // Update upper status fields
-            document.getElementById("current-chart-price").textContent = `$${data.price.toFixed(2)}`;
-            document.getElementById("current-chart-ema-fast").textContent = `$${data.ema_fast.toFixed(2)}`;
-            document.getElementById("current-chart-ema-slow").textContent = `$${data.ema_slow.toFixed(2)}`;
-
-            const timestampLabel = new Date().toLocaleTimeString();
-            chartLabels.push(timestampLabel);
-            chartPrices.push(data.price);
-            chartEmaFast.push(data.ema_fast);
-            chartEmaSlow.push(data.ema_slow);
-
-            if (chartPrices.length > maxTicks) {
-                chartLabels.shift();
-                chartPrices.shift();
-                chartEmaFast.shift();
-                chartEmaSlow.shift();
-            }
-
-            performanceChart.update('none'); // Update smoothly
+            // Update the real-time HUD terminal text
+            document.getElementById("hud-market").innerHTML = `XAUUSDT Fiyatı: <span class="font-bold text-yellow-500">$${data.price.toFixed(2)}</span> | Alıcı Yoğunluğu: <span class="font-bold text-emerald-400">${(data.order_book_imbalance*100).toFixed(1)}%</span>`;
+            document.getElementById("hud-technical").innerHTML = `Trend: <span class="font-bold text-emerald-400">${data.mtf_alignment}</span> | Fast EMA: <strong>$${data.ema_fast.toFixed(1)}</strong> | RSI: <strong>${data.rsi.toFixed(1)}</strong> | ATR: <strong>${data.atr.toFixed(2)}</strong>`;
+            document.getElementById("hud-strategy").innerHTML = `Market Yapısı: <span class="font-bold text-purple-400">${data.market_structure}</span>. Giriş sinyali taranıyor.`;
         }
 
         function handleStrategyTriggerOnChart(data) {
-            // Push indicator logic log
-            const msg = `[Strategy] Sinyal Tetiklendi: ${data.direction} @ $${data.price}`;
+            document.getElementById("hud-strategy").innerHTML = `<span class="px-2 py-0.5 rounded font-extrabold bg-emerald-500 text-black uppercase animate-bounce">SİNYAL: ${data.direction} tetiklendi @ $${data.price}</span>`;
+
             appendLiveLog({
                 level: "INFO",
                 timestamp: new Date().toISOString(),
@@ -414,7 +395,8 @@
         }
 
         function handleSignalRejectedOnChart(data) {
-            // Push indicator logic log
+            document.getElementById("hud-strategy").innerHTML = `Sinyal Reddedildi: <span class="text-rose-400 font-semibold">${data.reason}</span> @ $${data.price.toFixed(2)}`;
+
             appendLiveLog({
                 level: "WARNING",
                 timestamp: new Date().toISOString(),
@@ -565,6 +547,7 @@
 
         // Setup everything on load
         window.onload = function() {
+            initTradingView();
             connectWS();
             fetchMetrics();
             fetchRecommendations();
