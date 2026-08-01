@@ -69,12 +69,21 @@ async def on_trade_opened(payload: dict):
     await manager.broadcast({"type": "trade_opened", "data": payload})
 async def on_trade_closed(payload: dict):
     await manager.broadcast({"type": "trade_closed", "data": payload})
+async def on_indicators_calculated(payload: dict):
+    await manager.broadcast({"type": "indicators_calculated", "data": payload})
+async def on_strategy_triggered(payload: dict):
+    await manager.broadcast({"type": "strategy_triggered", "data": payload})
+async def on_signal_rejected(payload: dict):
+    await manager.broadcast({"type": "signal_rejected", "data": payload})
 
 event_bus.subscribe("Session Active", on_session_active)
 event_bus.subscribe("News Blackout Active", on_news_blackout)
 event_bus.subscribe("Low Volatility Regime", on_low_volatility)
 event_bus.subscribe("Trade Opened", on_trade_opened)
 event_bus.subscribe("Trade Closed", on_trade_closed)
+event_bus.subscribe("Indicators Calculated", on_indicators_calculated)
+event_bus.subscribe("Strategy Triggered", on_strategy_triggered)
+event_bus.subscribe("Signal Rejected", on_signal_rejected)
 
 @app.get("/", response_class=HTMLResponse)
 def get_dashboard():

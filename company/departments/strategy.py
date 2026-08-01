@@ -91,11 +91,13 @@ class StrategyDepartment(BaseDepartment):
 
         if not session_allowed:
             self.logger.warning(f"Signal Rejected: Session Filter ({self.session_active} disabled)")
+            await event_bus.publish("Signal Rejected", {"reason": f"Session Filter ({self.session_active} disabled)", "price": price, "timestamp": payload["timestamp"]})
             return
 
         # Filter E: Low Volatility Regime check
         if self.low_volatility_regime:
             self.logger.warning("Signal Rejected: Volatility Regime Filter (Low Volatility detected)")
+            await event_bus.publish("Signal Rejected", {"reason": "Volatility Regime (Low Volatility)", "price": price, "timestamp": payload["timestamp"]})
             return
 
         # Filter F: S/R Order Block proximity filter
@@ -104,6 +106,7 @@ class StrategyDepartment(BaseDepartment):
         dist_res = abs(price - self.key_resistance) / price
         if dist_support < self.sr_proximity_margin_pct or dist_res < self.sr_proximity_margin_pct:
             self.logger.warning("Signal Rejected: S/R Proximity confirmation failed")
+            await event_bus.publish("Signal Rejected", {"reason": "S/R Proximity", "price": price, "timestamp": payload["timestamp"]})
             return
 
         # 3. Final verification of Confluence and Signal Emission
