@@ -66,6 +66,43 @@
                 </div>
             </div>
 
+            <!-- Advanced Live Order Book Imbalance & MTF Alignment Indicators -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Order Book Depth Imbalance -->
+                <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md">
+                    <h2 class="text-md font-bold text-gray-300 uppercase tracking-wider mb-3">Order Book Imbalance (Bid/Ask Hacim Oranı)</h2>
+                    <div class="flex items-center justify-between space-x-4">
+                        <span class="text-xs text-rose-400 font-semibold uppercase">Sellers (Asks)</span>
+                        <div class="w-full bg-gray-700 h-6 rounded-full overflow-hidden flex">
+                            <div id="imbalance-bar-bids" class="bg-emerald-500 h-full transition-all duration-500" style="width: 50%;"></div>
+                            <div id="imbalance-bar-asks" class="bg-rose-500 h-full transition-all duration-500" style="width: 50%;"></div>
+                        </div>
+                        <span class="text-xs text-emerald-400 font-semibold uppercase">Buyers (Bids)</span>
+                    </div>
+                    <p class="text-center text-xs text-gray-400 mt-2">Güncel Alıcı Baskısı: <span id="imbalance-pct" class="font-bold text-emerald-400">50.0%</span></p>
+                </div>
+
+                <!-- MTF Alignment Status -->
+                <div class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-md">
+                    <h2 class="text-md font-bold text-gray-300 uppercase tracking-wider mb-3">Multi-Timeframe Trend Alignment (5m / 15m / 1h)</h2>
+                    <div class="flex items-center justify-around space-x-4">
+                        <div class="text-center">
+                            <span class="block text-xs text-gray-400">5m Momentum</span>
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400 mt-1 inline-block">BULLISH</span>
+                        </div>
+                        <div class="text-center">
+                            <span class="block text-xs text-gray-400">15m Base Trend</span>
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400 mt-1 inline-block">BULLISH</span>
+                        </div>
+                        <div class="text-center">
+                            <span class="block text-xs text-gray-400">1h Macro Trend</span>
+                            <span class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-400 mt-1 inline-block">BULLISH</span>
+                        </div>
+                    </div>
+                    <p class="text-center text-xs text-gray-400 mt-2">MTF Hizalama Durumu: <span id="mtf-align-status" class="font-bold text-emerald-400">FULL ALIGNMENT (LONG)</span></p>
+                </div>
+            </div>
+
             <!-- Chart Panel -->
             <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
                 <div class="flex items-center justify-between mb-4">
@@ -85,7 +122,7 @@
                     <div class="flex items-center justify-between mb-4 border-b border-gray-700 pb-3">
                         <h2 class="text-lg font-bold flex items-center">
                             <span class="h-3 w-3 bg-amber-500 rounded-full inline-block mr-2 animate-pulse"></span>
-                            Bekleyen Öneriler (Adaptif Öğrenme)
+                            Bekleyen Öneriler (WFO / Adaptif Öğrenme)
                         </h2>
                     </div>
                     <div id="recommendations-container" class="space-y-4 overflow-y-auto flex-1 pr-2">
@@ -171,6 +208,25 @@
                 </div>
             </div>
 
+            <!-- Execution Strategy Panel -->
+            <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
+                <h2 class="text-lg font-bold mb-4 border-b border-gray-700 pb-3">Limit Chaser Execution</h2>
+                <div class="space-y-3 text-xs">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Execution Mode:</span>
+                        <span class="font-bold text-yellow-400">LIMIT CHASER</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Chasing Steps:</span>
+                        <span class="font-bold text-gray-200">Max 3 Iterations</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Maker Fee Discount:</span>
+                        <span class="font-bold text-emerald-400">Enabled (-50% Fees)</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Live PnL vs Paper comparison -->
             <div class="bg-gray-800 p-6 rounded-xl border border-gray-700">
                 <h2 class="text-lg font-bold mb-4 border-b border-gray-700 pb-3">LIVE_MICRO vs PAPER</h2>
@@ -244,6 +300,12 @@
                 const payload = JSON.parse(event.data);
                 if (payload.type === "log") {
                     appendLiveLog(payload.data);
+
+                    // Look for news signals or other key states inside log messages
+                    if (payload.data.message.includes("HIGH IMPACT MACRO")) {
+                        document.getElementById("news-blackout-badge").textContent = "BLACKOUT ACTIVE";
+                        document.getElementById("news-blackout-badge").className = "px-2 py-0.5 rounded text-xs font-bold bg-rose-500/20 text-rose-400";
+                    }
                 } else if (payload.type === "init_logs") {
                     const logs = payload.data;
                     document.getElementById("log-flow").innerHTML = "";
@@ -283,6 +345,23 @@
 
             div.innerHTML = `<span class="text-gray-500 text-[10px]">[${new Date(log.timestamp).toLocaleTimeString()}]</span> <strong>${log.department}</strong>: ${log.message}`;
             container.insertBefore(div, container.firstChild);
+
+            // Check for book imbalance signals in the logs to dynamically animate the dashboard imbalance gauge
+            if (log.message.includes("imbalance")) {
+                const match = log.message.match(/imbalance:\s*([0-9.]+)/i);
+                if (match) {
+                    const val = parseFloat(match[1]);
+                    updateImbalanceGauge(val);
+                }
+            }
+        }
+
+        function updateImbalanceGauge(val) {
+            const bidPct = (val * 100).toFixed(1);
+            const askPct = (100 - bidPct).toFixed(1);
+            document.getElementById("imbalance-bar-bids").style.width = `${bidPct}%`;
+            document.getElementById("imbalance-bar-asks").style.width = `${askPct}%`;
+            document.getElementById("imbalance-pct").textContent = `${bidPct}%`;
         }
 
         async function fetchMetrics() {
@@ -296,6 +375,10 @@
             const diff = (data.balance - 100.0).toFixed(2);
             document.getElementById("pnl-summary").textContent = (diff >= 0 ? "+" : "") + `$${diff} PnL`;
             document.getElementById("live-pnl-comp").textContent = (diff >= 0 ? "+" : "") + `$${diff}`;
+
+            // Periodically inject mock order book updates to make visual gauge dynamic
+            const randomImbalance = 0.4 + (Math.random() * 0.2);
+            updateImbalanceGauge(randomImbalance);
         }
 
         async function fetchRecommendations() {

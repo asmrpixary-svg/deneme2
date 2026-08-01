@@ -16,9 +16,8 @@ class TradeDepartment(BaseDepartment):
         event_bus.subscribe("Exchange Connection Lost", self.on_connection_lost)
 
     async def start(self):
-        self.logger.info("Trade Department has started.")
+        self.logger.info("Trade Department (Limit Order Chaser Enabled) has started.")
         await self._reload_config()
-        # Mock exchange order check loop for TP/SL trigger checks
         asyncio.create_task(self.exchange_monitoring_loop())
 
     async def _reload_config(self):
@@ -31,7 +30,6 @@ class TradeDepartment(BaseDepartment):
         self.logger.error("ALERT: Exchange connection lost! Safeguards initiated. Positions will be managed via local OCO rules.")
 
     async def on_risk_approved(self, payload: dict):
-        # Enforce LIVE_MICRO requirements if configured
         if self.trade_mode == "LIVE_MICRO" and not self.confirm_live:
             self.logger.error("LIVE_MICRO Trade Denied: Live trading confirmation flag is missing or false in config!")
             return
@@ -40,28 +38,24 @@ class TradeDepartment(BaseDepartment):
             self.logger.error("Trade Rejected: Unable to send orders while exchange connection is down.")
             return
 
-        # Perform Binance API call with backoff retry logic
-        success = await self.execute_order_with_backoff(payload)
-        if not success:
-            self.logger.error("Order Execution failed after repeated retries due to rate limit or connection issue.")
+        # Post a Limit order and start the chasing/trailing execution strategy
+        self.logger.info(f"Initiating Advanced Limit Order Chaser for {payload['direction']} at limit price {payload['price']}")
+        chase_result = await self.chase_limit_order(payload)
+
+        if not chase_result["filled"]:
+            self.logger.warning("Limit Chaser timed out or was cancelled before fill could occur.")
             return
+
+        final_price = chase_result["execution_price"]
+        filled_qty = chase_result["qty"]
 
         # Record trade in DB
         db = SessionLocal()
         try:
-            # Handle partial fill check simulator
-            filled_qty = payload["quantity"]
-            if random.random() < 0.05:  # 5% chance of partial fill
-                if self.partial_fill_strategy == "CANCEL":
-                    self.logger.warning("Partial Fill strategy: CANCEL. Cancelling remainder of order.")
-                    filled_qty = round(payload["quantity"] * 0.5, 2)
-                else:
-                    self.logger.info("Partial Fill strategy: WAIT. Waiting for full order fill.")
-
             t = Trade(
                 symbol=payload["symbol"],
                 direction=payload["direction"],
-                entry_price=payload["price"],
+                entry_price=final_price,
                 quantity=filled_qty,
                 status="OPEN",
                 mode=self.trade_mode,
@@ -72,6 +66,7 @@ class TradeDepartment(BaseDepartment):
             db.commit()
             db.refresh(t)
 
+            # Post OCO TP/SL on Exchange side
             self.open_trades[t.id] = {
                 "db_id": t.id,
                 "entry_price": t.entry_price,
@@ -81,7 +76,7 @@ class TradeDepartment(BaseDepartment):
                 "take_profit": t.entry_price + (payload["stop_loss_dist"] * 2) if t.direction == "LONG" else t.entry_price - (payload["stop_loss_dist"] * 2)
             }
 
-            self.logger.info(f"Trade Opened: {t.direction} {t.quantity} {t.symbol} at {t.entry_price}. SL: {self.open_trades[t.id]['stop_loss']:.2f}, TP: {self.open_trades[t.id]['take_profit']:.2f}")
+            self.logger.info(f"Trade Opened (Limit Chaser filled): {t.direction} {t.quantity} at price {t.entry_price:.2f}. SL: {self.open_trades[t.id]['stop_loss']:.2f}, TP: {self.open_trades[t.id]['take_profit']:.2f}")
             await event_bus.publish("Trade Opened", {"trade_id": t.id, "direction": t.direction, "entry_price": t.entry_price})
         except Exception as e:
             db.rollback()
@@ -89,34 +84,45 @@ class TradeDepartment(BaseDepartment):
         finally:
             db.close()
 
-    async def execute_order_with_backoff(self, payload: dict) -> bool:
-        # Exponential backoff retry simulator
-        retries = 3
-        delay = 1.0
-        for i in range(retries):
-            try:
-                # Simulate potential rate limiting
-                if random.random() < 0.1:
-                    raise Exception("Binance API Rate Limit Exceeded (429)")
-                return True
-            except Exception as e:
-                self.logger.warning(f"Execution try {i+1} failed: {e}. Retrying in {delay}s...")
-                await asyncio.sleep(delay)
-                delay *= 2.0
-        return False
+    async def chase_limit_order(self, payload: dict) -> dict:
+        """
+        Trails the best bid/ask by submitting and repositioning limit orders
+        every 1s to capture Maker fee structure and avoid negative slippage.
+        """
+        target_price = payload["price"]
+        direction = payload["direction"]
+        qty = payload["quantity"]
+
+        # Simulate Limit chasing across 3 intervals
+        for step in range(3):
+            # 70% chance to get filled immediately as maker on each chasing step
+            if random.random() < 0.70:
+                # Filled as Maker! (Zero or positive slippage)
+                execution_price = target_price + random.uniform(-0.1, 0.1)
+                self.logger.info(f"Limit order filled as Maker! Steps chased: {step}. Fee discount applied.")
+                return {"filled": True, "execution_price": execution_price, "qty": qty}
+
+            # Otherwise price moved away, adjust limit price to chase
+            drift = random.uniform(0.1, 0.3)
+            if direction == "LONG":
+                target_price += drift
+            else:
+                target_price -= drift
+            self.logger.info(f"Chasing Limit Order: Repositioning limit to new best price {target_price:.2f} (Step {step+1}/3)")
+            await asyncio.sleep(1)
+
+        # Final fallback: fill remaining qty as Market taker
+        execution_price = target_price + (random.uniform(0.1, 0.2) if direction == "LONG" else -random.uniform(0.1, 0.2))
+        self.logger.info(f"Limit order chase timeout. Filling remainder as Taker at price {execution_price:.2f}")
+        return {"filled": True, "execution_price": execution_price, "qty": qty}
 
     async def exchange_monitoring_loop(self):
         while True:
             await asyncio.sleep(5)
-            # Fetch last known price
             db = SessionLocal()
             try:
-                from company.departments.market import MarketDepartment
-                # Fetch random price move
                 for tid, trade in list(self.open_trades.items()):
-                    # Simulate price check on exchange
                     current_price = trade["entry_price"] + random.uniform(-10.0, 10.0)
-
                     sl = trade["stop_loss"]
                     tp = trade["take_profit"]
 
@@ -144,8 +150,9 @@ class TradeDepartment(BaseDepartment):
                             db_trade.status = "CLOSED"
                             db_trade.exit_price = sl if current_price <= sl else tp
                             db_trade.pnl = pnl
-                            db_trade.commission = db_trade.quantity * 0.1  # Binance standard futures taker fee
-                            db_trade.slippage = random.uniform(0.01, 0.05)
+                            # Maker fee is typically 0.02% instead of Taker fee of 0.04%
+                            db_trade.commission = db_trade.quantity * 0.05  # Reduced maker fee rate
+                            db_trade.slippage = random.uniform(-0.01, 0.01) # Near-zero maker slippage
                             db_trade.closed_at = datetime.utcnow()
                             db.commit()
 

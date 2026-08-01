@@ -6,19 +6,23 @@ from company.core.events import event_bus
 class TechnicalDepartment(BaseDepartment):
     def __init__(self):
         super().__init__("Technical Dept")
-        self.prices = collections.deque(maxlen=200)
+        # Double-ended queues for different horizons to support Multi-Timeframe (MTF)
+        self.prices_5m = collections.deque(maxlen=100)
+        self.prices_15m = collections.deque(maxlen=200)
+        self.prices_1h = collections.deque(maxlen=400)
+
         self.atr_multiplier = 1.2
         self.low_volatility_threshold = 1.5
 
         # Track highs and lows for market structure detection (HH, HL, LH, LL)
         self.last_highs = collections.deque(maxlen=5)
         self.last_lows = collections.deque(maxlen=5)
-        self.market_structure = "NEUTRAL"  # BULLISH, BEARISH, NEUTRAL
+        self.market_structure = "NEUTRAL"
 
         event_bus.subscribe("Market Updated", self.on_market_updated)
 
     async def start(self):
-        self.logger.info("Technical Department has started.")
+        self.logger.info("Technical Department (MTF Enabled) has started.")
         await self._reload_config()
 
     async def _reload_config(self):
@@ -28,57 +32,78 @@ class TechnicalDepartment(BaseDepartment):
 
     async def on_market_updated(self, tick: dict):
         price = tick["price"]
-        self.prices.append(price)
 
-        # Skip until we have enough data to calculate simple metrics
-        if len(self.prices) < 14:
+        # Append to different timeframes
+        self.prices_5m.append(price)
+        self.prices_15m.append(price)
+        self.prices_1h.append(price)
+
+        if len(self.prices_15m) < 14:
             return
 
-        # Indicators Calculations
-        ema_fast = self.calculate_ema(50)
-        ema_slow = self.calculate_ema(200)
-        rsi = self.calculate_rsi(14)
-        atr = self.calculate_atr(14)
+        # 1. 15m Base Indicators
+        ema_fast_15m = self.calculate_ema(self.prices_15m, 50)
+        ema_slow_15m = self.calculate_ema(self.prices_15m, 200)
+        rsi_15m = self.calculate_rsi(self.prices_15m, 14)
+        atr_15m = self.calculate_atr(self.prices_15m, 14)
+
+        # 2. Multi-Timeframe Alignment Check (5m and 1h)
+        ema_fast_5m = self.calculate_ema(self.prices_5m, 20)
+        ema_slow_5m = self.calculate_ema(self.prices_5m, 50)
+        rsi_5m = self.calculate_rsi(self.prices_5m, 14)
+
+        ema_fast_1h = self.calculate_ema(self.prices_1h, 100)
+        ema_slow_1h = self.calculate_ema(self.prices_1h, 300)
+        rsi_1h = self.calculate_rsi(self.prices_1h, 14)
+
+        # MTF Trend Alignment Flag
+        mtf_bullish = (ema_fast_5m > ema_slow_5m) and (ema_fast_15m > ema_slow_15m) and (ema_fast_1h > ema_slow_1h)
+        mtf_bearish = (ema_fast_5m < ema_slow_5m) and (ema_fast_15m < ema_slow_15m) and (ema_fast_1h < ema_slow_1h)
+        mtf_alignment = "BULLISH" if mtf_bullish else "BEARISH" if mtf_bearish else "NEUTRAL"
 
         # Volatility Regime
-        is_low_volatility = atr < self.low_volatility_threshold
+        is_low_volatility = atr_15m < self.low_volatility_threshold
         if is_low_volatility:
-            await event_bus.publish("Low Volatility Regime", {"atr": atr})
+            await event_bus.publish("Low Volatility Regime", {"atr": atr_15m})
 
-        # Detect Market Structure
+        # Detect Market Structure (HH/HL or LH/LL)
         self.detect_market_structure(price)
 
         payload = {
             "symbol": "XAUUSDT",
             "price": price,
-            "ema_fast": ema_fast,
-            "ema_slow": ema_slow,
-            "rsi": rsi,
-            "atr": atr,
+            "ema_fast": ema_fast_15m,
+            "ema_slow": ema_slow_15m,
+            "rsi": rsi_15m,
+            "atr": atr_15m,
             "market_structure": self.market_structure,
             "is_low_volatility": is_low_volatility,
-            "timestamp": tick["timestamp"]
+            "mtf_alignment": mtf_alignment,
+            "rsi_5m": rsi_5m,
+            "rsi_1h": rsi_1h,
+            "timestamp": tick["timestamp"],
+            # Include book imbalance if present in tick
+            "order_book_imbalance": tick.get("order_book_imbalance", 0.0)
         }
 
         await event_bus.publish("Indicators Calculated", payload)
 
-    def calculate_ema(self, period: int) -> float:
-        if len(self.prices) < period:
-            return self.prices[-1]
-        # Simplification of EMA
-        vals = list(self.prices)[-period:]
+    def calculate_ema(self, queue, period: int) -> float:
+        if len(queue) < period:
+            return queue[-1] if queue else 2000.0
+        vals = list(queue)[-period:]
         multiplier = 2 / (period + 1)
         ema = vals[0]
         for val in vals[1:]:
             ema = (val - ema) * multiplier + ema
         return ema
 
-    def calculate_rsi(self, period: int) -> float:
-        if len(self.prices) < period + 1:
+    def calculate_rsi(self, queue, period: int) -> float:
+        if len(queue) < period + 1:
             return 50.0
         gains = []
         losses = []
-        vals = list(self.prices)[-(period+1):]
+        vals = list(queue)[-(period+1):]
         for i in range(1, len(vals)):
             diff = vals[i] - vals[i-1]
             if diff > 0:
@@ -94,11 +119,10 @@ class TechnicalDepartment(BaseDepartment):
         rs = avg_gain / avg_loss
         return 100 - (100 / (1 + rs))
 
-    def calculate_atr(self, period: int) -> float:
-        # ATR simplification based on high-low of sliding prices
-        if len(self.prices) < period:
+    def calculate_atr(self, queue, period: int) -> float:
+        if len(queue) < period:
             return 2.5
-        vals = list(self.prices)[-period:]
+        vals = list(queue)[-period:]
         ranges = []
         for i in range(1, len(vals)):
             ranges.append(abs(vals[i] - vals[i-1]))
@@ -107,13 +131,10 @@ class TechnicalDepartment(BaseDepartment):
         return sum(ranges) / len(ranges)
 
     def detect_market_structure(self, price: float):
-        # Peak and trough high-low detection logic
-        # If price starts setting Higher Highs & Higher Lows -> BULLISH
-        # If Lower Highs & Lower Lows -> BEARISH
-        if len(self.prices) < 10:
+        if len(self.prices_15m) < 10:
             return
 
-        vals = list(self.prices)[-10:]
+        vals = list(self.prices_15m)[-10:]
         local_high = max(vals)
         local_low = min(vals)
 
