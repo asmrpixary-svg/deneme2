@@ -10,6 +10,7 @@ class MarketDepartment(BaseDepartment):
         self.last_price = 2000.0  # Safe starter fallback
         self.consecutive_bad_ticks = 0
         self.last_imbalance = 0.5 # Equal balanced fallback (0.0 - 1.0)
+        self.is_first_tick = True
 
     async def start(self):
         self.logger.info("Market Department with Order Book Depth Imbalance has started.")
@@ -89,6 +90,10 @@ class MarketDepartment(BaseDepartment):
         price = tick.get("price", 0.0)
         if price <= 0.0:
             return False
+
+        if self.is_first_tick:
+            self.is_first_tick = False
+            return True
 
         if self.last_price > 0:
             pct_change = abs(price - self.last_price) / self.last_price
