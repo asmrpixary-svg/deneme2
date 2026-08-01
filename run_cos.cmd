@@ -1,4 +1,7 @@
 @echo off
+:: Change directory to the folder where this batch file is located
+cd /d "%~dp0"
+
 title Company Operating System (COS) - XAUUSDT Master
 color 0E
 
