@@ -2,10 +2,12 @@ import asyncio
 import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List, Dict
 from datetime import datetime
 from sqlalchemy.orm import Session
+import os
 
 from company.database.connection import get_db, SessionLocal
 from company.database.models import Recommendation, ConfigStore, ConfigHistory, Trade, SystemLog
@@ -73,6 +75,14 @@ event_bus.subscribe("News Blackout Active", on_news_blackout)
 event_bus.subscribe("Low Volatility Regime", on_low_volatility)
 event_bus.subscribe("Trade Opened", on_trade_opened)
 event_bus.subscribe("Trade Closed", on_trade_closed)
+
+@app.get("/", response_class=HTMLResponse)
+def get_dashboard():
+    dashboard_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dashboard", "index.html")
+    if os.path.exists(dashboard_path):
+        with open(dashboard_path, "r", encoding="utf-8") as f:
+            return f.read()
+    return "<h3>Dashboard index.html not found!</h3>"
 
 @app.on_event("startup")
 async def startup_event():
